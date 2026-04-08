@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Allocate — Weekly Time Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e0e0e;--bg2:#141414;--bg3:#1a1a1a;--bg4:#222222;
+  --border:#2a2a2a;--border2:#333333;
+  --text:#e8e4dc;--text2:#9a9488;--text3:#5c5852;
+  --tan:#c4b99a;--tan2:#a09070;--accent:#d4c9b0;
+  --red:#c0392b;--green:#2d7a4f;--amber:#b07a20;
+  --mono:'DM Mono',monospace;--sans:'Syne',sans-serif;
+  --sidebar:220px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;font-size:15px;overflow-x:hidden}
+
+/* ══ SCREENS ══ */
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .48s ease,transform .48s ease;transform:translateY(20px);z-index:1;overflow-y:auto}
+.screen.visible{opacity:1;pointer-events:all;transform:translateY(0);z-index:2}
+.screen.exit{opacity:0;transform:translateY(-20px);pointer-events:none;z-index:1;transition:opacity .4s ease,transform .4s ease}
+
+/* ══ LANDING ══ */
+#screen-landing{background:var(--bg);align-items:center;justify-content:center;text-align:center;padding:2rem}
+.land-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--text3);margin-bottom:2rem;animation:fadeUp .8s ease both}
+.land-logo{font-size:clamp(44px,10vw,96px);font-weight:800;letter-spacing:-.03em;line-height:1;margin-bottom:1.25rem;animation:fadeUp .8s .1s ease both}
+.land-logo span{color:var(--tan)}
+.land-tag{font-family:var(--mono);font-size:clamp(11px,2vw,13px);color:var(--text3);line-height:1.9;max-width:360px;margin:0 auto 3rem;animation:fadeUp .8s .2s ease both}
+.land-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;animation:fadeUp .8s .3s ease both}
+.btn-lp{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;background:var(--tan);color:var(--bg);border:none;border-radius:4px;padding:14px 38px;cursor:pointer;font-weight:500;transition:all .2s}
+.btn-lp:hover{background:var(--accent);transform:translateY(-1px)}
+.btn-lg{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;background:transparent;color:var(--text3);border:1px solid var(--border2);border-radius:4px;padding:14px 28px;cursor:pointer;transition:all .2s}
+.btn-lg:hover{color:var(--text);background:var(--bg3)}
+.land-line{position:fixed;top:0;left:50%;width:1px;height:100%;background:linear-gradient(to bottom,transparent,var(--border) 20%,var(--border) 80%,transparent);opacity:.35;pointer-events:none}
+
+/* ══ APP SHELL ══ */
+#screen-app{background:var(--bg);overflow:hidden;display:block}
+#screen-app.visible{display:grid;grid-template-columns:var(--sidebar) 1fr;min-height:100vh}
+
+/* ══ SIDEBAR ══ */
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:2rem 0;position:sticky;top:0;height:100vh;overflow:hidden;transition:transform .3s ease}
+.logo{padding:0 1.5rem 1.5rem;border-bottom:1px solid var(--border);margin-bottom:1.25rem}
+.logo-word{font-size:18px;font-weight:800;letter-spacing:.02em}
+.logo-word span{color:var(--tan)}
+.logo-sub{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.14em;margin-top:3px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:10px;padding:11px 1.5rem;font-size:11px;font-weight:500;color:var(--text3);cursor:pointer;transition:all .15s;border-left:2px solid transparent;letter-spacing:.05em;text-transform:uppercase;font-family:var(--mono);white-space:nowrap}
+.nav-item:hover{color:var(--text2);background:var(--bg3)}
+.nav-item.active{color:var(--tan);border-left-color:var(--tan);background:rgba(196,185,154,.04)}
+.nav-icon{width:15px;height:15px;flex-shrink:0;opacity:.6}
+.sb-foot{margin-top:auto;padding:1.25rem;border-top:1px solid var(--border)}
+.sleep-pill{background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:10px 12px;font-family:var(--mono);font-size:10px;color:var(--text2);line-height:2}
+.sleep-pill span{color:var(--tan);font-weight:500}
+
+/* ══ MOBILE NAV BAR ══ */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);z-index:50;padding:0}
+.mobile-nav-inner{display:flex;justify-content:space-around;align-items:stretch}
+.mnav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px 12px;cursor:pointer;color:var(--text3);font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;transition:all .15s;border-top:2px solid transparent}
+.mnav-item.active{color:var(--tan);border-top-color:var(--tan)}
+.mnav-icon{width:18px;height:18px;opacity:.6}
+.mnav-item.active .mnav-icon{opacity:1}
+
+/* ══ MAIN ══ */
+.main{padding:2rem 2rem 4rem;overflow-y:auto;height:100vh}
+
+/* ══ PAGES ══ */
+.page{display:none;animation:fadeUp .22s ease both}
+.page.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ══ COMMON ══ */
+.ph{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:1.75rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border)}
+.pt{font-size:22px;font-weight:700;letter-spacing:-.01em}
+.ph2{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.08em}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:1.25rem;margin-bottom:1rem}
+.ct{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--text3);margin-bottom:1rem}
+label{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:5px}
+input[type=text],input[type=number],input[type=time],select{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-family:var(--mono);font-size:13px;padding:9px 12px;outline:none;transition:border-color .15s;appearance:none;-webkit-appearance:none}
+input:focus,select:focus{border-color:var(--tan2)}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:.875rem;margin-bottom:.875rem}
+.ff{margin-bottom:.875rem}
+.btn{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:4px;transition:all .15s;padding:9px 16px;border:1px solid var(--border2);background:transparent;color:var(--text2)}
+.btn:hover{background:var(--bg4);color:var(--text)}
+.btn:active{transform:scale(.98)}
+.btn-p{background:var(--tan);color:var(--bg);border-color:var(--tan);font-weight:500}
+.btn-p:hover{background:var(--accent);border-color:var(--accent)}
+.btn-full{width:100%;text-align:center;margin-top:.5rem}
+.btn-gd{color:#7a3030;border-color:transparent;padding:4px 8px;font-size:10px}
+.btn-gd:hover{color:var(--red);background:rgba(192,57,43,.08)}
+.dts{display:flex;gap:4px;flex-wrap:wrap}
+.dt{font-family:var(--mono);font-size:10px;letter-spacing:.04em;padding:6px 9px;border:1px solid var(--border2);border-radius:3px;cursor:pointer;color:var(--text3);background:var(--bg3);transition:all .12s;user-select:none}
+.dt.on{background:var(--tan);color:var(--bg);border-color:var(--tan)}
+
+/* ══ METRICS ══ */
+.mg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1.25rem}
+.mc{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:.875rem}
+.mv{font-family:var(--mono);font-size:clamp(18px,3vw,26px);font-weight:400;color:var(--tan);letter-spacing:-.02em;line-height:1}
+.ml{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-top:5px}
+
+/* ══ WEEK GRID ══ */
+.wg{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.wc{display:flex;flex-direction:column;gap:2px}
+.wdh{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);text-align:center;padding:5px 0;border-bottom:1px solid var(--border);margin-bottom:3px}
+.wb{font-family:var(--mono);font-size:8px;padding:3px 4px;border-radius:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.wbf{background:var(--bg4);color:var(--text3);border:1px solid var(--border)}
+
+/* ══ PROGRESS ══ */
+.pt2{height:3px;background:var(--bg4);border-radius:2px;overflow:hidden;margin:4px 0}
+.pf{height:100%;border-radius:2px;transition:width .4s ease}
+
+/* ══ ALLOC ROWS ══ */
+.ar{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.ar:last-child{border-bottom:none}
+.an{font-size:13px;font-weight:500;min-width:100px;flex-shrink:0}
+.ah{font-family:var(--mono);font-size:11px;color:var(--text3);min-width:52px;text-align:right}
+
+/* ══ TIMER ══ */
+.tw{display:flex;flex-direction:column;align-items:center;padding:2rem 0 1.5rem}
+.tc{font-family:var(--mono);font-size:clamp(48px,10vw,68px);font-weight:300;letter-spacing:-.02em;color:var(--text);line-height:1;font-variant-numeric:tabular-nums}
+.tc.running{color:var(--tan)}
+.tc.overtime{color:#e0604f;animation:pulse 1s ease infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.tl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-top:8px;margin-bottom:1.5rem;min-height:14px;text-align:center}
+.tbw{width:100%;max-width:420px;margin-bottom:1.25rem}
+.tbi{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:5px}
+.tcs{display:flex;gap:8px;margin-top:.5rem;flex-wrap:wrap;justify-content:center}
+.btn-ts{background:var(--tan);color:var(--bg);border-color:var(--tan);font-weight:500;padding:10px 28px;font-size:11px}
+.btn-ts:hover{background:var(--accent)}
+.tsw{width:100%;max-width:420px;margin-bottom:1.75rem}
+.tsw select{font-size:14px;padding:11px 14px}
+.overtime-badge{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#e0604f;background:rgba(224,96,79,.1);border:1px solid rgba(224,96,79,.25);border-radius:3px;padding:4px 10px;margin-top:8px;display:none}
+.overtime-badge.show{display:inline-block}
+
+/* ══ SESSION LOG ══ */
+.si{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:12px}
+.si:last-child{border-bottom:none}
+
+/* ══ SUMMARY ══ */
+.sr2{padding:12px 0;border-bottom:1px solid var(--border)}
+.sr2:last-child{border-bottom:none}
+.st2{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.sb3{font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;padding:3px 7px;border-radius:3px}
+.sd{background:rgba(45,122,79,.18);color:#4aaa76}
+.so{background:rgba(176,122,32,.18);color:#c9962e}
+.sb4{background:rgba(192,57,43,.18);color:#e0604f}
+
+/* ══ SWATCHES ══ */
+.sw-row{display:flex;gap:6px;flex-wrap:wrap}
+.sw{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .12s}
+.sw:hover{transform:scale(1.15)}
+.sw.selected{border-color:var(--text);transform:scale(1.1)}
+
+/* ══ TASK ITEMS ══ */
+.ti{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--border)}
+.ti:last-child{border-bottom:none}
+.tdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.tn{font-weight:600;font-size:14px;flex:1;color:var(--text);transition:color .3s;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tm{font-family:var(--mono);font-size:10px;color:var(--text3);white-space:nowrap}
+.ti.done .tn{color:var(--text3);text-decoration:line-through}
+
+/* ══ STREAK ══ */
+.streak-wrap{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.streak-flame{font-size:15px;line-height:1;transition:filter .4s,opacity .4s}
+.streak-flame.warm{filter:grayscale(40%) brightness(.8)}
+.streak-flame.cold{filter:grayscale(80%) brightness(.6);opacity:.6}
+.streak-flame.dead{filter:grayscale(100%) brightness(.4);opacity:.3}
+.streak-num{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--text2)}
+.streak-num.hot{color:#e8914a}
+.streak-num.warm{color:#b07a20}
+.streak-num.cold{color:var(--text3)}
+.streak-num.dead{color:var(--text3);opacity:.4}
+
+/* ══ CHECKMARK ══ */
+.check-circle{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border2);flex-shrink:0;cursor:pointer;transition:all .25s;background:transparent}
+.check-circle.checked{background:#2d7a4f;border-color:#2d7a4f}
+.check-circle svg{opacity:0;transform:scale(.5);transition:all .25s}
+.check-circle.checked svg{opacity:1;transform:scale(1)}
+
+/* ══ MISC ══ */
+.is{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:10px 14px;font-family:var(--mono);font-size:11px;color:var(--text2);line-height:1.7;margin-bottom:1rem}
+.is strong{color:var(--tan);font-weight:500}
+.empty{font-family:var(--mono);font-size:11px;color:var(--text3);padding:1rem 0;text-align:center;letter-spacing:.04em}
+.dz{border:1px solid #3a1a1a;border-radius:6px;padding:1.25rem;margin-top:1.5rem}
+.dzt{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#7a3030;margin-bottom:.75rem}
+
+/* ══ OVERTIME MODAL ══ */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(5px);z-index:200;display:flex;align-items:center;justify-content:center;padding:1.5rem;opacity:0;pointer-events:none;transition:opacity .25s ease}
+.mo.open{opacity:1;pointer-events:all}
+.mb{background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:2rem;max-width:420px;width:100%;transform:translateY(14px) scale(.97);transition:transform .3s ease}
+.mo.open .mb{transform:translateY(0) scale(1)}
+.mb-tag{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;margin-bottom:.75rem}
+.mb-tag.overtime{color:#e0604f}
+.mb-tag.about{color:var(--tan)}
+.mb-title{font-size:20px;font-weight:700;letter-spacing:-.01em;margin-bottom:.75rem;line-height:1.2}
+.mb-body{font-family:var(--mono);font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:1.5rem}
+.mb-extra{font-family:var(--mono);font-size:11px;color:var(--text3);margin-bottom:1.25rem;line-height:1.7}
+.mb-actions{display:flex;flex-direction:column;gap:8px}
+.btn-ot-stop{background:var(--tan);color:var(--bg);border:none;border-radius:4px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;padding:12px;cursor:pointer;transition:all .15s;width:100%}
+.btn-ot-stop:hover{background:var(--accent)}
+.btn-ot-carry{background:transparent;color:var(--text2);border:1px solid var(--border2);border-radius:4px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:11px;cursor:pointer;transition:all .15s;width:100%}
+.btn-ot-carry:hover{background:var(--bg3);color:var(--text)}
+.btn-ot-bonus{background:transparent;color:#c9962e;border:1px solid rgba(176,122,32,.3);border-radius:4px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:11px;cursor:pointer;transition:all .15s;width:100%}
+.btn-ot-bonus:hover{background:rgba(176,122,32,.08)}
+.mb-close{float:right;font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);cursor:pointer;background:none;border:none;padding:2px 6px;transition:color .15s}
+.mb-close:hover{color:var(--text)}
+.mq{border-left:2px solid var(--tan);padding:.875rem 1rem;margin:1.25rem 0;background:var(--bg3);border-radius:0 4px 4px 0}
+.mqt{font-family:var(--sans);font-size:13px;font-weight:500;color:var(--text);line-height:1.6;font-style:italic;margin-bottom:5px}
+.mqa{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3)}
+.mcta{font-family:var(--mono);font-size:11px;color:var(--tan);line-height:1.8}
+
+/* ══ CONFETTI ══ */
+#confetti-canvas{position:fixed;inset:0;pointer-events:none;z-index:9999}
+
+/* ══ SCROLLBAR ══ */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* ══════════════════════════════
+   RESPONSIVE — TABLET
+══════════════════════════════ */
+@media(max-width:900px){
+  :root{--sidebar:180px}
+  .mg{grid-template-columns:1fr 1fr}
+  .fr{grid-template-columns:1fr}
+  .mv{font-size:22px}
+}
+
+/* ══════════════════════════════
+   RESPONSIVE — MOBILE
+══════════════════════════════ */
+@media(max-width:640px){
+  #screen-app.visible{grid-template-columns:1fr;grid-template-rows:1fr auto}
+  .sidebar{display:none}
+  .mobile-nav{display:block}
+  .main{padding:1.25rem 1rem 80px;height:100vh}
+  .ph{margin-bottom:1.25rem}
+  .pt{font-size:20px}
+  .ph2{display:none}
+  .card{padding:1rem}
+  .mg{grid-template-columns:1fr 1fr;gap:6px}
+  .mc{padding:.75rem}
+  .mv{font-size:20px}
+  .ml{font-size:8px}
+  .wg{grid-template-columns:repeat(7,1fr);gap:3px}
+  .wdh{font-size:8px;padding:4px 0}
+  .wb{font-size:7px;padding:2px 3px}
+  .fr{grid-template-columns:1fr}
+  .ff{margin-bottom:.75rem}
+  .land-tag{font-size:12px}
+  .tc{font-size:52px}
+  .tcs{gap:6px}
+  .btn-ts{padding:10px 20px}
+  .tn{font-size:13px}
+  .tm{display:none}
+  .btn-gd{padding:4px 6px}
+  .sb-foot{display:none}
+  .tw{padding:1.25rem 0 1rem}
+  .tsw{margin-bottom:1.25rem}
+  .tbw{margin-bottom:1rem}
+}
+
+@media(max-width:380px){
+  .mg{grid-template-columns:1fr 1fr}
+  .tc{font-size:42px}
+  .dt{padding:5px 7px;font-size:9px}
+}
+</style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+
+<!-- ════ LANDING ════ -->
+<div class="screen visible" id="screen-landing">
+  <div class="land-line"></div>
+  <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;padding:2rem">
+    <div class="land-eyebrow">Time Allocation &nbsp;·&nbsp; Focus &nbsp;·&nbsp; Progress</div>
+    <div class="land-logo">ALLO<span>C</span>ATE</div>
+    <div class="land-tag">Map your week. Protect your time.<br>Know exactly where your hours go — and make every one count.</div>
+    <div class="land-btns">
+      <button class="btn-lp" onclick="enterApp()">Continue &nbsp;→</button>
+      <button class="btn-lg" onclick="openAbout()">About</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ APP ════ -->
+<div class="screen" id="screen-app">
+
+  <!-- Desktop sidebar -->
+  <nav class="sidebar">
+    <div class="logo">
+      <div class="logo-word">ALLO<span>C</span>ATE</div>
+      <div class="logo-sub">Weekly Planner</div>
+    </div>
+    <div class="nav-item active" onclick="showPage('setup')">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>Setup
+    </div>
+    <div class="nav-item" onclick="showPage('week')">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="11" rx="1.5"/><path d="M5 1v3M11 1v3M1 7h14"/></svg>Week View
+    </div>
+    <div class="nav-item" onclick="showPage('timer')">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="9" r="6"/><path d="M8 6v3l2 1.5"/><path d="M6 1h4"/></svg>Timer
+    </div>
+    <div class="nav-item" onclick="showPage('summary')">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12l3-4 3 2 3-5 3 3"/><rect x="1" y="1" width="14" height="14" rx="1.5"/></svg>Summary
+    </div>
+    <div class="sb-foot">
+      <div class="sleep-pill">
+        <div>Sleep &nbsp;·&nbsp; <span id="sbsl">—</span></div>
+        <div>Awake &nbsp;·&nbsp; <span id="sbaw">—</span></div>
+        <div>Free/day &nbsp;·&nbsp; <span id="sbfr">—</span></div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <!-- SETUP -->
+    <div class="page active" id="page-setup">
+      <div class="ph"><div class="pt">Setup</div><div class="ph2">Define your week</div></div>
+      <div class="card">
+        <div class="ct">Sleep Schedule</div>
+        <div class="fr">
+          <div class="ff"><label>Bedtime</label><input type="time" id="sleepTime" value="23:00"></div>
+          <div class="ff"><label>Wake up</label><input type="time" id="wakeTime" value="07:00"></div>
+        </div>
+        <div class="is" id="sleep-strip">—</div>
+      </div>
+      <div class="card"><div class="ct">Your Tasks</div><div id="task-list"></div></div>
+      <div class="card">
+        <div class="ct">Add a Task</div>
+        <div class="is"><strong>Carnegie unit:</strong> For every 1h of class, plan ~2h of outside work.</div>
+        <div class="fr">
+          <div class="ff" style="margin:0"><label>Task name</label><input type="text" id="newName" placeholder="e.g. Networking homework"></div>
+          <div class="ff" style="margin:0"><label>Hours / week</label><input type="number" id="newHours" value="5" min="0.5" max="80" step="0.5"></div>
+        </div>
+        <div class="ff" style="margin-top:.875rem">
+          <label>Color</label>
+          <div class="sw-row" id="swatch-row">
+            <div class="sw selected" data-c="#c4b99a" style="background:#c4b99a"></div>
+            <div class="sw" data-c="#8fa3b1" style="background:#8fa3b1"></div>
+            <div class="sw" data-c="#7a9e7e" style="background:#7a9e7e"></div>
+            <div class="sw" data-c="#c0392b" style="background:#c0392b"></div>
+            <div class="sw" data-c="#9b8dc4" style="background:#9b8dc4"></div>
+            <div class="sw" data-c="#c4a882" style="background:#c4a882"></div>
+            <div class="sw" data-c="#7ca8a4" style="background:#7ca8a4"></div>
+            <div class="sw" data-c="#b89090" style="background:#b89090"></div>
+          </div>
+        </div>
+        <div class="ff">
+          <label>Active days</label>
+          <div class="dts" id="day-toggles">
+            <div class="dt on" data-d="0">Sun</div><div class="dt on" data-d="1">Mon</div>
+            <div class="dt on" data-d="2">Tue</div><div class="dt on" data-d="3">Wed</div>
+            <div class="dt on" data-d="4">Thu</div><div class="dt on" data-d="5">Fri</div>
+            <div class="dt on" data-d="6">Sat</div>
+          </div>
+        </div>
+        <button class="btn btn-p btn-full" onclick="addTask()">+ Add Task</button>
+      </div>
+    </div>
+
+    <!-- WEEK VIEW -->
+    <div class="page" id="page-week">
+      <div class="ph"><div class="pt">Week View</div><div class="ph2">Your time mapped out</div></div>
+      <div class="mg" id="week-metrics"></div>
+      <div class="card"><div class="ct">Daily Breakdown</div><div class="wg" id="week-grid"></div></div>
+      <div class="card"><div class="ct">Allocation by Task</div><div id="alloc-bars"></div></div>
+    </div>
+
+    <!-- TIMER -->
+    <div class="page" id="page-timer">
+      <div class="ph"><div class="pt">Timer</div><div class="ph2">Track active sessions</div></div>
+      <div class="card">
+        <div class="tw">
+          <div class="tsw"><label>Active Task</label>
+            <select id="timerSelect" onchange="onTimerSelect()"><option value="">— choose a task —</option></select>
+          </div>
+          <div class="tc" id="timerClock">00:00:00</div>
+          <div class="tl" id="timerLabel">No task selected</div>
+          <div class="overtime-badge" id="overtimeBadge">+ Overtime</div>
+          <div class="tbw">
+            <div class="pt2" style="height:5px"><div class="pf" id="timerFill" style="width:0%;background:var(--tan)"></div></div>
+            <div class="tbi"><span id="timerUsed">—</span><span id="timerLeft">—</span></div>
+          </div>
+          <div class="tcs">
+            <button class="btn btn-ts" id="startBtn" onclick="startTimer()">Start</button>
+            <button class="btn" id="pauseBtn" onclick="pauseTimer()" disabled>Pause</button>
+            <button class="btn" onclick="stopTimer()">Stop & Save</button>
+          </div>
+        </div>
+      </div>
+      <div class="card"><div class="ct">Today's Sessions</div><div id="todayLog"></div></div>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="page" id="page-summary">
+      <div class="ph"><div class="pt">Summary</div><div class="ph2">This week at a glance</div></div>
+      <div class="mg" id="sum-metrics"></div>
+      <div class="card"><div class="ct">Task Progress — This Week</div><div id="sum-tasks"></div></div>
+      <div class="card"><div class="ct">Daily Streaks</div><div id="streak-list"></div></div>
+      <div class="dz"><div class="dzt">Danger Zone</div>
+        <button class="btn btn-gd" onclick="resetWeek()" style="width:100%;text-align:center;padding:8px">Reset all session data for this week</button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Mobile bottom nav -->
+  <nav class="mobile-nav">
+    <div class="mobile-nav-inner">
+      <div class="mnav-item active" onclick="showPage('setup')" id="mnav-setup">
+        <svg class="mnav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
+        Setup
+      </div>
+      <div class="mnav-item" onclick="showPage('week')" id="mnav-week">
+        <svg class="mnav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="11" rx="1.5"/><path d="M5 1v3M11 1v3M1 7h14"/></svg>
+        Week
+      </div>
+      <div class="mnav-item" onclick="showPage('timer')" id="mnav-timer">
+        <svg class="mnav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="9" r="6"/><path d="M8 6v3l2 1.5"/><path d="M6 1h4"/></svg>
+        Timer
+      </div>
+      <div class="mnav-item" onclick="showPage('summary')" id="mnav-summary">
+        <svg class="mnav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12l3-4 3 2 3-5 3 3"/><rect x="1" y="1" width="14" height="14" rx="1.5"/></svg>
+        Summary
+      </div>
+    </div>
+  </nav>
+</div>
+
+<!-- ════ OVERTIME MODAL ════ -->
+<div class="mo" id="ot-modal">
+  <div class="mb">
+    <div class="mb-tag overtime">⏱ Time's Up</div>
+    <div class="mb-title" id="ot-title">You've hit your daily goal.</div>
+    <div class="mb-body" id="ot-body">Nice work. You can move on — or keep going if you're in the zone.</div>
+    <div class="mb-extra" id="ot-extra"></div>
+    <div class="mb-actions">
+      <button class="btn-ot-stop" onclick="otStop()">Done — Stop & Save</button>
+      <button class="btn-ot-carry" onclick="otCarryForward()">Keep going — reduce tomorrow's time</button>
+      <button class="btn-ot-bonus" onclick="otBonus()">Keep going — log as bonus cram time</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ ABOUT MODAL ════ -->
+<div class="mo" id="about-modal" onclick="closeAboutOverlay(event)">
+  <div class="mb">
+    <button class="mb-close" onclick="closeAbout()">✕ Close</button>
+    <div class="mb-tag about">About Allocate</div>
+    <div class="mb-title">Your time is the only thing you can't get back.</div>
+    <div class="mb-body">
+      <p>Allocate is built for college students juggling coursework, employees managing packed schedules, gym-goers trying to stay consistent — and anyone who reaches the end of a week wondering where all the time went.</p>
+      <p>Map your hours. Protect your free time. Follow through.</p>
+    </div>
+    <div class="mq">
+      <div class="mqt">"It takes roughly 1,000 hours of focused, deliberate practice to go from a complete beginner to genuinely skilled at something. That's not a warning — it's a map."</div>
+      <div class="mqa">Based on deliberate practice research — Anders Ericsson</div>
+    </div>
+    <div class="mb-body">
+      <p style="color:var(--tan);font-family:var(--sans);font-size:13px;font-weight:500;font-style:italic">Imagine if instead of wishing you were good at something — you just chased it. Even for an hour a day. What could you become in a year?</p>
+    </div>
+    <div class="mcta">Start mapping your time. The only thing standing between you and 1,000 hours is the decision to begin.</div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════
+let tasks    = JSON.parse(localStorage.getItem('al_tasks')    || '[]');
+let sessions = JSON.parse(localStorage.getItem('al_sessions') || '[]');
+let cfg      = JSON.parse(localStorage.getItem('al_cfg')      || '{"sleep":"23:00","wake":"07:00"}');
+let streaks  = JSON.parse(localStorage.getItem('al_streaks')  || '{}');
+let todayDone= JSON.parse(localStorage.getItem('al_todaydone')|| '{}');
+// overtimeBank: { taskId: extraSeconds } — extra seconds carried per task
+let otBank   = JSON.parse(localStorage.getItem('al_otbank')   || '{}');
+
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+let timerSec=0, timerRunning=false, timerInterval=null, activeTaskId=null, selColor='#c4b99a';
+let overtimeMode=false; // true once timer has passed daily alloc
+
+function persist(){
+  localStorage.setItem('al_tasks',    JSON.stringify(tasks));
+  localStorage.setItem('al_sessions', JSON.stringify(sessions));
+  localStorage.setItem('al_cfg',      JSON.stringify(cfg));
+  localStorage.setItem('al_streaks',  JSON.stringify(streaks));
+  localStorage.setItem('al_todaydone',JSON.stringify(todayDone));
+  localStorage.setItem('al_otbank',   JSON.stringify(otBank));
+}
+
+// ═══════════════════════════════════════
+// SCREENS
+// ═══════════════════════════════════════
+function enterApp(){
+  checkDayReset();
+  const land=document.getElementById('screen-landing');
+  const app=document.getElementById('screen-app');
+  land.classList.add('exit');
+  setTimeout(()=>{ land.classList.remove('visible','exit'); app.classList.add('visible'); },460);
+  renderTaskList(); updateSidebar();
+  document.getElementById('sleepTime').value=cfg.sleep;
+  document.getElementById('wakeTime').value=cfg.wake;
+}
+
+// ═══════════════════════════════════════
+// DAY RESET
+// ═══════════════════════════════════════
+function todayStr(){ return new Date().toDateString(); }
+function checkDayReset(){
+  const last=localStorage.getItem('al_lastday'), today=todayStr();
+  if(last!==today){
+    if(last) updateStreaksForMissedDay(new Date(last));
+    todayDone={}; otBank={};
+    localStorage.setItem('al_lastday',today);
+    persist();
+  }
+}
+function updateStreaksForMissedDay(missedDate){
+  tasks.forEach(t=>{
+    const id=String(t.id); if(!streaks[id])return;
+    const s=streaks[id]; if(!s.lastDoneDate)return;
+    const last=new Date(s.lastDoneDate);
+    const daysMissed=Math.round((new Date()-last)/86400000);
+    if(daysMissed>=14){s.count=0;s.state='dead';}
+    else if(daysMissed>=7){s.state='dead';s.count=Math.max(0,s.count-2);}
+    else if(daysMissed>=2){s.state='cold';}
+    else{s.count=Math.max(0,s.count-1);s.state=s.count>=7?'hot':s.count>=3?'warm':'cold';}
+  });
+  persist();
+}
+
+// ═══════════════════════════════════════
+// STREAK
+// ═══════════════════════════════════════
+function markTaskDone(taskId){
+  const id=String(taskId); if(todayDone[id])return;
+  todayDone[id]=true;
+  if(!streaks[id])streaks[id]={count:0,lastDoneDate:null,state:'cold'};
+  const s=streaks[id]; const today=new Date();
+  if(s.lastDoneDate){
+    const diff=Math.round((today-new Date(s.lastDoneDate))/86400000);
+    if(diff===1)s.count++;
+    else if(diff===2)s.count=Math.max(0,s.count-1)+1;
+    else s.count=Math.max(1,s.count);
+  }else{s.count=1;}
+  s.lastDoneDate=today.toISOString();
+  s.state=s.count>=7?'hot':s.count>=3?'warm':'cold';
+  persist();
+}
+function getStreakState(taskId){
+  const id=String(taskId); if(!streaks[id])return{count:0,state:'cold'};
+  const s=streaks[id]; if(!s.lastDoneDate)return{count:0,state:'cold'};
+  const daysSince=Math.round((new Date()-new Date(s.lastDoneDate))/86400000);
+  if(daysSince>=14)return{count:0,state:'dead'};
+  if(daysSince>=7)return{count:s.count,state:'dead'};
+  if(daysSince>=2)return{count:s.count,state:'cold'};
+  return{count:s.count,state:s.state||'cold'};
+}
+
+// ═══════════════════════════════════════
+// CONFETTI
+// ═══════════════════════════════════════
+(function(){
+  const canvas=document.getElementById('confetti-canvas');
+  const ctx=canvas.getContext('2d');
+  let particles=[],animId=null;
+  function resize(){canvas.width=innerWidth;canvas.height=innerHeight;}
+  window.addEventListener('resize',resize);resize();
+  function rndColor(){const c=['#c4b99a','#8fa3b1','#7a9e7e','#c0392b','#9b8dc4','#7ca8a4','#e8e4dc','#c4a882'];return c[Math.floor(Math.random()*c.length)];}
+  window.launchConfetti=function(){
+    resize();particles=[];
+    for(let i=0;i<160;i++)particles.push({x:Math.random()*canvas.width,y:-10-Math.random()*canvas.height*.3,w:6+Math.random()*8,h:3+Math.random()*5,color:rndColor(),rot:Math.random()*Math.PI*2,rotV:(Math.random()-.5)*.15,vx:(Math.random()-.5)*3,vy:2+Math.random()*4,alpha:1,gravity:.06});
+    if(animId)cancelAnimationFrame(animId);
+    let frame=0;
+    function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);let alive=false;
+      particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=p.gravity;p.rot+=p.rotV;if(p.y>canvas.height+20)p.alpha-=.04;if(p.alpha<=0)return;alive=true;ctx.save();ctx.globalAlpha=Math.max(0,p.alpha);ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.fillStyle=p.color;ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);ctx.restore();});
+      frame++;if(alive&&frame<300)animId=requestAnimationFrame(draw);else{ctx.clearRect(0,0,canvas.width,canvas.height);animId=null;}}
+    draw();
+  };
+})();
+
+// ═══════════════════════════════════════
+// TIME HELPERS
+// ═══════════════════════════════════════
+function toMins(t){const[h,m]=t.split(':').map(Number);return h*60+m;}
+function sleepMins(){const s=toMins(cfg.sleep),w=toMins(cfg.wake);return s>w?(1440-s+w):(w-s);}
+function awakeH(){return((1440-sleepMins())/60).toFixed(1);}
+function schedHpD(){return(tasks.reduce((a,t)=>a+parseFloat(t.hours||0),0)/7).toFixed(1);}
+function freeHpD(){return Math.max(0,parseFloat(awakeH())-parseFloat(schedHpD())).toFixed(1);}
+function fmtHMS(s){return[Math.floor(s/3600),Math.floor(s%3600/60),s%60].map(x=>String(x).padStart(2,'0')).join(':');}
+function fmtH(s){return(s/3600).toFixed(2)+'h';}
+function todSec(tid){const d=new Date().toDateString();return sessions.filter(s=>s.tid===tid&&new Date(s.date).toDateString()===d).reduce((a,s)=>a+s.sec,0);}
+function wkSec(tid){const n=new Date(),ws=new Date(n);ws.setDate(n.getDate()-n.getDay());ws.setHours(0,0,0,0);return sessions.filter(s=>s.tid===tid&&new Date(s.date)>=ws).reduce((a,s)=>a+s.sec,0);}
+// get daily alloc factoring in any carry-forward reductions
+function dailyAllocSec(task){
+  const base=(task.hours/task.days.length)*3600;
+  const reduction=(otBank[String(task.id)]||0);
+  return Math.max(0, base-reduction);
+}
+
+// ═══════════════════════════════════════
+// SIDEBAR
+// ═══════════════════════════════════════
+function updateSidebar(){
+  const sm=sleepMins(),sh=Math.floor(sm/60),smm=sm%60;
+  document.getElementById('sbsl').textContent=`${sh}h ${smm}m`;
+  document.getElementById('sbaw').textContent=`${awakeH()}h`;
+  document.getElementById('sbfr').textContent=`${freeHpD()}h`;
+  const el=document.getElementById('sleep-strip');
+  if(el)el.innerHTML=`Sleep: <strong>${sh}h ${smm}m</strong> &nbsp;·&nbsp; Awake: <strong>${awakeH()}h</strong> &nbsp;·&nbsp; Free/day: <strong>~${freeHpD()}h</strong>`;
+}
+
+// ═══════════════════════════════════════
+// SETUP
+// ═══════════════════════════════════════
+document.getElementById('sleepTime').addEventListener('change',e=>{cfg.sleep=e.target.value;persist();updateSidebar();});
+document.getElementById('wakeTime').addEventListener('change', e=>{cfg.wake=e.target.value; persist();updateSidebar();});
+document.querySelectorAll('.dt').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('on')));
+document.querySelectorAll('.sw').forEach(sw=>sw.addEventListener('click',()=>{
+  document.querySelectorAll('.sw').forEach(s=>s.classList.remove('selected'));
+  sw.classList.add('selected');selColor=sw.dataset.c;
+}));
+function getAD(){return[...document.querySelectorAll('.dt.on')].map(b=>+b.dataset.d);}
+function addTask(){
+  const nm=document.getElementById('newName').value.trim();
+  const hr=parseFloat(document.getElementById('newHours').value);
+  const dy=getAD();
+  if(!nm){alert('Enter a task name.');return;}
+  if(!hr||hr<=0){alert('Enter valid hours.');return;}
+  if(!dy.length){alert('Select at least one day.');return;}
+  tasks.push({id:Date.now(),name:nm,hours:hr,color:selColor,days:dy});
+  persist();renderTaskList();document.getElementById('newName').value='';
+}
+function removeTask(id){
+  tasks=tasks.filter(t=>t.id!==id);
+  delete streaks[String(id)];delete todayDone[String(id)];delete otBank[String(id)];
+  persist();renderTaskList();updateSidebar();
+}
+function toggleTaskDone(taskId){
+  const id=String(taskId);
+  if(todayDone[id]){todayDone[id]=false;persist();renderTaskList();return;}
+  markTaskDone(taskId);persist();renderTaskList();launchConfetti();
+}
+function renderTaskList(){
+  const el=document.getElementById('task-list');
+  if(!tasks.length){el.innerHTML='<div class="empty">No tasks yet. Add one below.</div>';return;}
+  el.innerHTML=tasks.map(t=>{
+    const done=!!todayDone[String(t.id)];
+    const sk=getStreakState(t.id);
+    return`<div class="ti ${done?'done':''}">
+      <div class="tdot" style="background:${t.color}"></div>
+      <div class="tn">${t.name}</div>
+      <div class="tm">${t.hours}h/wk</div>
+      <div class="streak-wrap"><span class="streak-flame ${sk.state}">🔥</span><span class="streak-num ${sk.state}">${sk.count}</span></div>
+      <div class="check-circle ${done?'checked':''}" onclick="toggleTaskDone(${t.id})">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <button class="btn btn-gd" onclick="removeTask(${t.id})">✕</button>
+    </div>`;
+  }).join('');
+  updateSidebar();
+}
+
+// ═══════════════════════════════════════
+// WEEK VIEW
+// ═══════════════════════════════════════
+function renderWeek(){
+  const tot=tasks.reduce((a,t)=>a+parseFloat(t.hours||0),0);
+  document.getElementById('week-metrics').innerHTML=`
+    <div class="mc"><div class="mv">${awakeH()}<span style="font-size:12px">h</span></div><div class="ml">Awake/day</div></div>
+    <div class="mc"><div class="mv">${tot.toFixed(1)}<span style="font-size:12px">h</span></div><div class="ml">Scheduled/wk</div></div>
+    <div class="mc"><div class="mv">${schedHpD()}<span style="font-size:12px">h</span></div><div class="ml">Sched/day</div></div>
+    <div class="mc"><div class="mv">${freeHpD()}<span style="font-size:12px">h</span></div><div class="ml">Free/day</div></div>`;
+  const g=document.getElementById('week-grid');g.innerHTML='';
+  const aw=parseFloat(awakeH());
+  DAYS.forEach((d,di)=>{
+    const col=document.createElement('div');col.className='wc';
+    col.innerHTML=`<div class="wdh">${d}</div>`;
+    const dt=tasks.filter(t=>t.days.includes(di));let used=0;
+    dt.forEach(t=>{
+      const h=t.hours/t.days.length;used+=h;
+      const b=document.createElement('div');b.className='wb';
+      b.style.background=t.color+'22';b.style.color=t.color;b.style.border=`1px solid ${t.color}44`;
+      b.title=`${t.name}: ${h.toFixed(1)}h`;b.textContent=`${t.name.substring(0,8)} ${h.toFixed(1)}h`;
+      col.appendChild(b);
+    });
+    const fr=Math.max(0,aw-used);
+    if(fr>0){const fb=document.createElement('div');fb.className='wb wbf';fb.textContent=`Free ${fr.toFixed(1)}h`;col.appendChild(fb);}
+    g.appendChild(col);
+  });
+  const bars=document.getElementById('alloc-bars');
+  if(!tasks.length){bars.innerHTML='<div class="empty">No tasks added yet.</div>';return;}
+  bars.innerHTML=tasks.map(t=>{
+    const p=tot>0?Math.round(t.hours/tot*100):0;
+    return`<div class="ar"><div class="tdot" style="background:${t.color}"></div><div class="an">${t.name}</div><div style="flex:1"><div class="pt2"><div class="pf" style="width:${p}%;background:${t.color}"></div></div></div><div class="ah">${t.hours}h (${p}%)</div></div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════
+// TIMER
+// ═══════════════════════════════════════
+function renderTimerSel(){
+  const s=document.getElementById('timerSelect');const c=s.value;
+  s.innerHTML='<option value="">— choose a task —</option>';
+  tasks.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.name;if(t.id==c)o.selected=true;s.appendChild(o);});
+}
+function onTimerSelect(){
+  const id=parseInt(document.getElementById('timerSelect').value);
+  const t=tasks.find(x=>x.id===id);
+  document.getElementById('timerLabel').textContent=t?t.name.toUpperCase():'No task selected';
+  document.getElementById('timerFill').style.background=t?t.color:'var(--tan)';
+  document.getElementById('overtimeBadge').classList.remove('show');
+  document.getElementById('timerClock').classList.remove('overtime');
+  updTimerBar(t||null);
+}
+
+function updTimerBar(t){
+  if(!t){
+    document.getElementById('timerUsed').textContent='';
+    document.getElementById('timerLeft').textContent='';
+    document.getElementById('timerFill').style.width='0%';
+    return;
+  }
+  const allocSec=dailyAllocSec(t);
+  const prevSec=todSec(t.id);
+  const totalSec=prevSec+(timerRunning||timerSec>0?timerSec:0);
+  const usedCapped=Math.min(totalSec,allocSec);
+  const overSec=Math.max(0,totalSec-allocSec);
+  const pct=allocSec>0?Math.min(100,Math.round(usedCapped/allocSec*100)):100;
+  document.getElementById('timerFill').style.width=pct+'%';
+  if(overSec>0){
+    document.getElementById('timerUsed').textContent=`+${fmtH(overSec)} overtime`;
+    document.getElementById('timerLeft').textContent='daily goal reached';
+    document.getElementById('timerFill').style.background='#e0604f';
+    document.getElementById('overtimeBadge').classList.add('show');
+    document.getElementById('timerClock').classList.add('overtime');
+  } else {
+    document.getElementById('timerUsed').textContent=fmtH(totalSec)+' used today';
+    document.getElementById('timerLeft').textContent=fmtH(Math.max(0,allocSec-totalSec))+' remaining';
+    document.getElementById('timerFill').style.background=t.color;
+  }
+  // auto-mark done + confetti when first hitting goal
+  if(pct>=100&&!todayDone[String(t.id)]){
+    markTaskDone(t.id);persist();renderTaskList();launchConfetti();
+  }
+}
+
+function startTimer(){
+  const id=parseInt(document.getElementById('timerSelect').value);
+  if(!id){alert('Select a task first.');return;}
+  if(timerRunning)return;
+  activeTaskId=id;timerRunning=true;overtimeMode=false;
+  document.getElementById('startBtn').disabled=true;
+  document.getElementById('pauseBtn').disabled=false;
+  document.getElementById('timerClock').classList.add('running');
+  timerInterval=setInterval(()=>{
+    timerSec++;
+    document.getElementById('timerClock').textContent=fmtHMS(timerSec);
+    const t=tasks.find(x=>x.id===activeTaskId);
+    if(!t)return;
+    const allocSec=dailyAllocSec(t);
+    const prevSec=todSec(t.id);
+    const totalSec=prevSec+timerSec;
+    // first moment we cross the threshold — pause and show modal
+    if(totalSec>=allocSec&&!overtimeMode){
+      overtimeMode=true;
+      pauseTimer();
+      showOvertimeModal(t,totalSec-allocSec);
+      return;
+    }
+    updTimerBar(t);
+  },1000);
+}
+
+function pauseTimer(){
+  if(!timerRunning)return;
+  clearInterval(timerInterval);timerRunning=false;
+  document.getElementById('startBtn').disabled=false;
+  document.getElementById('pauseBtn').disabled=true;
+  document.getElementById('timerClock').classList.remove('running');
+}
+
+function _saveTimerSession(){
+  if(timerSec>0){
+    const t=tasks.find(x=>x.id===activeTaskId);
+    if(t){sessions.push({tid:t.id,name:t.name,color:t.color,sec:timerSec,date:new Date().toISOString()});persist();}
+  }
+}
+function _resetTimerUI(){
+  clearInterval(timerInterval);timerRunning=false;timerSec=0;activeTaskId=null;overtimeMode=false;
+  document.getElementById('timerClock').textContent='00:00:00';
+  document.getElementById('timerClock').classList.remove('running','overtime');
+  document.getElementById('startBtn').disabled=false;
+  document.getElementById('pauseBtn').disabled=true;
+  document.getElementById('overtimeBadge').classList.remove('show');
+  document.getElementById('timerFill').style.background='var(--tan)';
+  updTimerBar(null);renderTodayLog();
+}
+
+function stopTimer(){
+  _saveTimerSession();_resetTimerUI();
+}
+
+// ═══════════════════════════════════════
+// OVERTIME MODAL
+// ═══════════════════════════════════════
+function showOvertimeModal(task,extraSec){
+  const hpd=(task.hours/task.days.length).toFixed(2);
+  document.getElementById('ot-title').textContent=`You've finished your ${hpd}h goal for ${task.name}.`;
+  document.getElementById('ot-body').textContent=`Nice work. You can stop now, or keep going if you\'re in the zone.`;
+  const tomorrowH=(task.hours/task.days.length).toFixed(2);
+  document.getElementById('ot-extra').innerHTML=
+    `<strong style="color:var(--text2)">If you keep going:</strong><br>
+     → <span style="color:var(--tan)">Reduce tomorrow</span> — extra time deducted from tomorrow's allocation.<br>
+     → <span style="color:#c9962e">Bonus cram</span> — logged as extra credit, tomorrow stays the same.`;
+  document.getElementById('ot-modal').classList.add('open');
+  // send browser notification if permission granted
+  if(Notification.permission==='granted'){
+    new Notification('Allocate — Goal reached!',{body:`You\'ve hit your daily target for ${task.name}. Great work.`,icon:''});
+  }
+}
+
+function _closeOtModal(){document.getElementById('ot-modal').classList.remove('open');}
+
+function otStop(){
+  _closeOtModal();
+  _saveTimerSession();_resetTimerUI();
+}
+
+function otCarryForward(){
+  _closeOtModal();
+  // continue timer — when they stop, extra time will reduce tomorrow
+  const t=tasks.find(x=>x.id===activeTaskId);
+  if(!t)return;
+  document.getElementById('timerLabel').textContent='OVERTIME — CARRY FORWARD';
+  // resume timer
+  timerRunning=true;
+  document.getElementById('startBtn').disabled=true;
+  document.getElementById('pauseBtn').disabled=false;
+  document.getElementById('timerClock').classList.add('running');
+  timerInterval=setInterval(()=>{
+    timerSec++;
+    document.getElementById('timerClock').textContent=fmtHMS(timerSec);
+    updTimerBar(t);
+  },1000);
+  // on stop, we'll handle carry-forward in stopTimerWithCarry
+  document.getElementById('startBtn').onclick=null;
+  document.getElementById('pauseBtn').onclick=()=>pauseTimer();
+  // replace Stop & Save button handler temporarily
+  document.querySelectorAll('.tcs .btn')[2].onclick=()=>stopTimerCarryForward();
+}
+
+function otBonus(){
+  _closeOtModal();
+  const t=tasks.find(x=>x.id===activeTaskId);
+  if(!t)return;
+  document.getElementById('timerLabel').textContent='BONUS CRAM TIME 🔥';
+  timerRunning=true;
+  document.getElementById('startBtn').disabled=true;
+  document.getElementById('pauseBtn').disabled=false;
+  document.getElementById('timerClock').classList.add('running');
+  timerInterval=setInterval(()=>{
+    timerSec++;
+    document.getElementById('timerClock').textContent=fmtHMS(timerSec);
+    updTimerBar(t);
+  },1000);
+  document.querySelectorAll('.tcs .btn')[2].onclick=()=>stopTimerBonus();
+}
+
+function stopTimerCarryForward(){
+  pauseTimer();
+  const t=tasks.find(x=>x.id===activeTaskId);
+  if(t){
+    const allocSec=dailyAllocSec(t);
+    const totalSec=todSec(t.id)+timerSec;
+    const extraSec=Math.max(0,totalSec-allocSec);
+    if(extraSec>0){
+      const id=String(t.id);
+      otBank[id]=(otBank[id]||0)+extraSec;
+    }
+  }
+  _saveTimerSession();
+  // restore stop button
+  document.querySelectorAll('.tcs .btn')[2].onclick=()=>stopTimer();
+  _resetTimerUI();
+}
+
+function stopTimerBonus(){
+  pauseTimer();
+  _saveTimerSession();
+  document.querySelectorAll('.tcs .btn')[2].onclick=()=>stopTimer();
+  _resetTimerUI();
+}
+
+function renderTodayLog(){
+  const d=new Date().toDateString();
+  const list=sessions.filter(s=>new Date(s.date).toDateString()===d).slice().reverse();
+  const el=document.getElementById('todayLog');
+  if(!list.length){el.innerHTML='<div class="empty">No sessions yet today.</div>';return;}
+  el.innerHTML=list.map(s=>{
+    const t=new Date(s.date);
+    return`<div class="si"><div class="tdot" style="background:${s.color}"></div><div style="flex:1;font-size:13px;color:var(--text)">${s.name}</div><div style="color:var(--tan)">${fmtHMS(s.sec)}</div><div style="color:var(--text3);margin-left:8px">${t.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div></div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════
+// SUMMARY
+// ═══════════════════════════════════════
+function renderSummary(){
+  const ta=tasks.reduce((a,t)=>a+parseFloat(t.hours||0),0);
+  const tls=sessions.reduce((a,s)=>a+s.sec,0);
+  const tlh=(tls/3600).toFixed(1);
+  const p=ta>0?Math.min(100,Math.round(tlh/ta*100)):0;
+  document.getElementById('sum-metrics').innerHTML=`
+    <div class="mc"><div class="mv">${ta.toFixed(1)}<span style="font-size:12px">h</span></div><div class="ml">Allocated/wk</div></div>
+    <div class="mc"><div class="mv">${tlh}<span style="font-size:12px">h</span></div><div class="ml">Logged so far</div></div>
+    <div class="mc"><div class="mv">${p}<span style="font-size:12px">%</span></div><div class="ml">Completion</div></div>
+    <div class="mc"><div class="mv">${freeHpD()}<span style="font-size:12px">h</span></div><div class="ml">Free/day</div></div>`;
+  const el=document.getElementById('sum-tasks');
+  if(!tasks.length){el.innerHTML='<div class="empty">No tasks yet.</div>';return;}
+  el.innerHTML=tasks.map(t=>{
+    const ws=wkSec(t.id),as=t.hours*3600;
+    const p2=Math.min(100,Math.round(ws/as*100));
+    const lft=Math.max(0,(as-ws)/3600).toFixed(1);
+    const badge=p2>=100?`<span class="sb3 sd">Done</span>`:p2>=50?`<span class="sb3 so">On track</span>`:`<span class="sb3 sb4">Behind</span>`;
+    const carryNote=otBank[String(t.id)]>0?`<span style="font-family:var(--mono);font-size:9px;color:var(--tan);margin-left:6px">-${fmtH(otBank[String(t.id)])} carried fwd</span>`:'';
+    return`<div class="sr2">
+      <div class="st2">
+        <div class="tdot" style="background:${t.color}"></div>
+        <div style="flex:1;font-size:14px;font-weight:600">${t.name}${carryNote}</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3)">${(ws/3600).toFixed(1)} / ${t.hours}h</div>
+        ${badge}
+      </div>
+      <div class="pt2"><div class="pf" style="width:${p2}%;background:${t.color}"></div></div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px">${lft}h remaining this week</div>
+    </div>`;
+  }).join('');
+  const sl=document.getElementById('streak-list');
+  sl.innerHTML=tasks.map(t=>{
+    const sk=getStreakState(t.id);
+    const label=sk.state==='dead'&&sk.count===0?'No streak':sk.state==='dead'?'Fading':sk.state==='cold'?'Building':sk.state==='warm'?'On a roll':'On fire';
+    const sc=sk.state==='hot'?'#e8914a':sk.state==='warm'?'#c9962e':sk.state==='cold'?'var(--text3)':'#5c5852';
+    return`<div class="ti" style="padding:10px 0">
+      <div class="tdot" style="background:${t.color}"></div>
+      <div class="tn" style="font-size:13px">${t.name}</div>
+      <div style="font-family:var(--mono);font-size:10px;color:${sc};margin-right:6px">${label}</div>
+      <span class="streak-flame ${sk.state}" style="font-size:18px">🔥</span>
+      <span style="font-family:var(--mono);font-size:14px;font-weight:500;color:${sc};min-width:28px;text-align:right">${sk.count}</span>
+    </div>`;
+  }).join('');
+}
+
+function resetWeek(){
+  if(!confirm('Clear all session data for this week?'))return;
+  const n=new Date(),ws=new Date(n);ws.setDate(n.getDate()-n.getDay());ws.setHours(0,0,0,0);
+  sessions=sessions.filter(s=>new Date(s.date)<ws);
+  persist();renderSummary();renderTodayLog();
+}
+
+// ═══════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.mnav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  const m={setup:0,week:1,timer:2,summary:3};
+  document.querySelectorAll('.nav-item')[m[id]].classList.add('active');
+  const mn=document.getElementById('mnav-'+id);if(mn)mn.classList.add('active');
+  if(id==='week')renderWeek();
+  if(id==='timer'){renderTimerSel();renderTodayLog();onTimerSelect();}
+  if(id==='summary')renderSummary();
+}
+
+// ═══════════════════════════════════════
+// ABOUT MODAL
+// ═══════════════════════════════════════
+function openAbout(){document.getElementById('about-modal').classList.add('open');}
+function closeAbout(){document.getElementById('about-modal').classList.remove('open');}
+function closeAboutOverlay(e){if(e.target===document.getElementById('about-modal'))closeAbout();}
+
+// ═══════════════════════════════════════
+// NOTIFICATION PERMISSION
+// ═══════════════════════════════════════
+if('Notification' in window && Notification.permission==='default'){
+  Notification.requestPermission();
+}
+</script>
+</body>
+</html>
